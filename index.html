@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>DUY KEY · Dark VIP Generator</title>
+    <!-- CryptoJS for MD5 hashing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            font-family: 'Segoe UI', 'Poppins', system-ui, -apple-system, sans-serif;
+        }
+
+        /* CARD nền đen, viền đỏ, hiệu ứng bóng mạnh mẽ */
+        .duy-card {
+            position: relative;
+            background: #0f0f0f;
+            border-radius: 2rem;
+            border: 2.5px solid #d62828;
+            box-shadow: 0 12px 28px -8px rgba(214, 40, 40, 0.4), 0 0 0 1px rgba(214, 40, 40, 0.2);
+            width: 100%;
+            max-width: 400px;
+            padding: 1.2rem 1.5rem;
+            overflow: hidden;
+            transition: all 0.2s;
+            backdrop-filter: blur(2px);
+        }
+
+        /* Dao trang trí - sắc bén, kích thước vừa, đặt bên trong card */
+        .knife-deco {
+            position: absolute;
+            font-size: 1.1rem;
+            filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.65;
+            color: #e04e4e;
+            transition: 0.2s;
+        }
+        .knife-1 { top: 12px; left: 12px; transform: rotate(-25deg); }
+        .knife-2 { top: 12px; right: 12px; transform: rotate(25deg); }
+        .knife-3 { bottom: 12px; left: 12px; transform: rotate(15deg); }
+        .knife-4 { bottom: 12px; right: 12px; transform: rotate(-15deg); }
+        .knife-5 { top: 50%; left: 8px; transform: translateY(-50%) rotate(-10deg); font-size: 0.9rem; opacity: 0.5; }
+        .knife-6 { top: 50%; right: 8px; transform: translateY(-50%) rotate(10deg); font-size: 0.9rem; opacity: 0.5; }
+
+        @media (max-width: 450px) {
+            .duy-card { max-width: 340px; padding: 1rem 1.2rem; }
+            .knife-deco { font-size: 0.9rem; }
+            .knife-5, .knife-6 { display: none; }
+        }
+
+        /* Nội dung nổi trên dao */
+        .title-section, .info-grid, .key-wrapper, .action-buttons, .datetime-area, .footer {
+            position: relative;
+            z-index: 3;
+        }
+
+        .title-section {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ff6b6b, #e63946);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: -0.5px;
+        }
+        .title-icon {
+            font-size: 1.8rem;
+            filter: drop-shadow(0 0 3px #ff4d4d);
+        }
+        .subhead {
+            font-size: 0.7rem;
+            background: rgba(214, 40, 40, 0.25);
+            backdrop-filter: blur(4px);
+            display: inline-block;
+            padding: 0.25rem 1.2rem;
+            border-radius: 40px;
+            color: #ffb4a2;
+            font-weight: 700;
+            margin-top: 8px;
+            border: 0.5px solid rgba(214, 40, 40, 0.5);
+        }
+
+        /* Thông tin IP + ngày dạng lưới đẹp */
+        .info-grid {
+            background: #181818;
+            border-radius: 20px;
+            padding: 0.7rem 1rem;
+            margin: 0.8rem 0 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            border: 1px solid #2d2d2d;
+            box-shadow: inset 0 0 4px #00000055, 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .info-item {
+            flex: 1;
+            text-align: center;
+        }
+        .info-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #ff8a6f;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        .info-value {
+            font-family: 'Fira Mono', 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 0.85rem;
+            background: #0c0c0c;
+            padding: 5px 8px;
+            border-radius: 40px;
+            margin-top: 5px;
+            color: #ffcfc2;
+            border: 0.5px solid #d43f31;
+            word-break: break-all;
+        }
+
+        .key-wrapper {
+            margin: 0.5rem 0 0.8rem;
+        }
+        .key-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #ff9f8f;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-left: 4px;
+        }
+        .key-field {
+            width: 100%;
+            background: #111;
+            border: 2px solid #d43f31;
+            border-radius: 60px;
+            padding: 0.85rem 1rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            font-family: 'Fira Mono', 'Courier New', monospace;
+            color: #fdd9cf;
+            text-align: center;
+            letter-spacing: 2px;
+            transition: all 0.2s;
+            outline: none;
+            box-shadow: inset 0 2px 5px #00000088, 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .key-field:focus {
+            border-color: #ff6b6b;
+            box-shadow: 0 0 0 3px rgba(214, 40, 40, 0.4), inset 0 1px 2px #000;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin: 1rem 0 1rem;
+        }
+        .btn {
+            border: none;
+            padding: 0.65rem 1.4rem;
+            border-radius: 50px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #2a2a2a;
+            color: #ffded5;
+            border: 1px solid #444;
+        }
+        .btn-primary {
+            background: #d62828;
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(214, 40, 40, 0.5);
+        }
+        .btn-primary:hover {
+            background: #b91c1c;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 18px rgba(185, 28, 28, 0.6);
+        }
+        .btn-secondary {
+            background: #262626;
+            border-color: #d43f31;
+            color: #ffb7a7;
+        }
+        .btn-secondary:hover {
+            background: #3a2a28;
+            transform: translateY(-1px);
+            border-color: #ff6b6b;
+        }
+
+        .datetime-area {
+            text-align: center;
+            margin-top: 0.6rem;
+            padding-top: 0.7rem;
+            border-top: 1px solid rgba(214, 64, 49, 0.4);
+        }
+        .date-text {
+            font-size: 0.85rem;
+            font-weight: 700;
+            background: linear-gradient(120deg, #ff9a7a, #ff6b5b);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .clock-text {
+            font-family: monospace;
+            font-size: 1rem;
+            font-weight: 800;
+            background: #1f1f1f;
+            display: inline-block;
+            padding: 0.3rem 1.2rem;
+            border-radius: 60px;
+            color: #ffaa99;
+            margin-top: 8px;
+            letter-spacing: 1.5px;
+            border: 0.5px solid #d43f31;
+            backdrop-filter: blur(2px);
+        }
+        .footer {
+            margin-top: 1rem;
+            text-align: center;
+            font-size: 0.65rem;
+            color: #a87c6f;
+            font-weight: 500;
+        }
+        .footer a {
+            color: #ff7a62;
+            text-decoration: none;
+            font-weight: 800;
+            transition: color 0.2s;
+        }
+        .footer a:hover {
+            color: #ffb4a2;
+            text-decoration: underline;
+        }
+
+        /* Loading animation */
+        .loading-dots {
+            display: inline-block;
+        }
+        .toast-msg {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.9);
+            background: #1f1b1ae6;
+            backdrop-filter: blur(12px);
+            color: #ffdad2;
+            padding: 0.5rem 1.5rem;
+            border-radius: 60px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            z-index: 999;
+            opacity: 0;
+            transition: 0.15s;
+            pointer-events: none;
+            white-space: nowrap;
+            border-left: 4px solid #d62828;
+            font-family: monospace;
+            box-shadow: 0 4px 12px black;
+        }
+        .toast-msg.show {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+
+        @keyframes pulseRed {
+            0% { text-shadow: 0 0 0 #ff4d4d; opacity: 0.8; }
+            100% { text-shadow: 0 0 4px #ff1a1a; opacity: 1; }
+        }
+        .generated-key {
+            animation: pulseRed 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+
+<div class="duy-card">
+    <!-- Không gian dao decor giữ nguyên phong cách bản gốc nhưng thêm phần sắc bén -->
+    <div class="knife-deco knife-1">🔪</div>
+    <div class="knife-deco knife-2">🗡️</div>
+    <div class="knife-deco knife-3">⚔️</div>
+    <div class="knife-deco knife-4">🔪</div>
+    <div class="knife-deco knife-5">🗡️</div>
+    <div class="knife-deco knife-6">⚔️</div>
+
+    <div class="title-section">
+        <h1>
+            <span class="title-icon">🗝️</span>
+            DUY KEY
+            <span class="title-icon">🔪</span>
+        </h1>
+        <div class="subhead">⚡ HUYCON OMEGA · VIP GENERATOR ⚡</div>
+    </div>
+
+    <!-- Thông tin IP và ngày hệ thống hiển thị đẹp -->
+    <div class="info-grid">
+        <div class="info-item">
+            <div class="info-label"><span>🌐</span> IP CỦA BẠN</div>
+            <div class="info-value" id="displayIp">Đang quét...</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label"><span>📅</span> NGÀY KEY</div>
+            <div class="info-value" id="displayDateKey">--/--/----</div>
+        </div>
+    </div>
+
+    <div class="key-wrapper">
+        <div class="key-label"><span>🔐 MÃ HUYCON VIP</span> <span>⚡</span></div>
+        <input type="text" id="keyInput" class="key-field" readonly value="⚡ ĐANG TẠO KEY ⚡">
+    </div>
+
+    <div class="action-buttons">
+        <button class="btn btn-primary" id="copyBtn">📋 COPY KEY</button>
+        <button class="btn btn-secondary" id="refreshBtn">🔄 TẠO LẠI</button>
+    </div>
+
+    <div class="datetime-area">
+        <div class="date-text"><span>⏱️</span> <span id="fullDateDisplay">--/--/----</span></div>
+        <div class="clock-text">🕒 <span id="liveClock">--:--:--</span></div>
+    </div>
+
+    <div class="footer">
+        <b>⚡ <a href="#" id="creatorLink" style="cursor:pointer;">Duy Khánh · Dark Edition</a> | Huycon VIP Key ⚡</b>
+    </div>
+</div>
+
+<div id="toastMsg" class="toast-msg">✨ Đã sao chép key</div>
+
+<script>
+    // ============================================================
+    // CẤU HÌNH CHUẨN Y HỆT BẢN GỐC: SECRET_CODE_VIP và MD5
+    // ============================================================
+    const SECRET_CODE_VIP = "0171KANAJA011KANTDK";   // giữ nguyên từ code đầu tiên
+
+    // DOM elements
+    const keyInput = document.getElementById('keyInput');
+    const copyBtn = document.getElementById('copyBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const displayIpSpan = document.getElementById('displayIp');
+    const displayDateKeySpan = document.getElementById('displayDateKey');
+    const fullDateSpan = document.getElementById('fullDateDisplay');
+    const liveClockSpan = document.getElementById('liveClock');
+    const toastEl = document.getElementById('toastMsg');
+
+    let currentKey = "";          // lưu key đã generate
+    let currentIp = "";           // lưu IP hiện tại
+    let currentDateKey = "";      // ddmmyyyy
+
+    // Hàm show toast thông minh
+    let toastTimeout = null;
+    function showToast(msg, isError = false) {
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastEl.textContent = msg || (isError ? '⚠️ Thao tác thất bại' : '✅ Thành công');
+        toastEl.classList.add('show');
+        toastTimeout = setTimeout(() => toastEl.classList.remove('show'), 1800);
+    }
+
+    // Cập nhật đồng hồ realtime + ngày tháng (không ảnh hưởng key)
+    function updateRealTimeClock() {
+        const now = new Date();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const seconds = now.getSeconds().toString().padStart(2, '0');
+        liveClockSpan.innerText = `${hours}:${minutes}:${seconds}`;
+        const day = now.getDate();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+        fullDateSpan.innerText = `${day}/${month}/${year}`;
+        setTimeout(updateRealTimeClock, 1000);
+    }
+
+    // Lấy ngày theo giờ Việt Nam (Asia/Ho_Chi_Minh) giống hệt logic gốc
+    function getVietnamDateKey() {
+        const now = new Date();
+        const vnTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+        let d = vnTime.getDate().toString().padStart(2, '0');
+        let m = (vnTime.getMonth() + 1).toString().padStart(2, '0');
+        let y = vnTime.getFullYear();
+        return `${d}${m}${y}`;   // ddMMyyyy
+    }
+
+    // Hàm sinh key dựa trên IP + dateKey + SECRET_CODE_VIP -> MD5 -> 8 ký tự đầu
+    function generateKeyFromData(ipAddress, dateKeyStr) {
+        const rawStr = `${ipAddress}|${dateKeyStr}|${SECRET_CODE_VIP}`;
+        const hash = CryptoJS.MD5(rawStr).toString().toUpperCase();
+        return hash.substring(0, 8);
+    }
+
+    // Hiển thị ngày key lên giao diện (định dạng dd/mm/yyyy)
+    function updateDateKeyDisplay(dateKeyNum) {
+        // dateKeyNum có dạng DDMMYYYY -> chuyển thành DD/MM/YYYY
+        if (dateKeyNum && dateKeyNum.length === 8) {
+            const day = dateKeyNum.substring(0,2);
+            const month = dateKeyNum.substring(2,4);
+            const year = dateKeyNum.substring(4,8);
+            displayDateKeySpan.innerText = `${day}/${month}/${year}`;
+        } else {
+            displayDateKeySpan.innerText = "Lỗi ngày";
+        }
+    }
+
+    // Hàm chính: lấy IP từ api, tính toán key, cập nhật giao diện
+    async function fetchAndGenerateKey() {
+        // Hiển thị trạng thái loading
+        keyInput.value = "⚡ ĐANG KẾT NỐI... ⚡";
+        keyInput.style.opacity = "0.9";
+        
+        // 1. Lấy ngày key VN
+        const vnDateKey = getVietnamDateKey();    // ddMMyyyy
+        currentDateKey = vnDateKey;
+        updateDateKeyDisplay(vnDateKey);
+        
+        // 2. Lấy IP từ ipify (chuẩn như bản gốc)
+        try {
+            const response = await fetch('https://api.ipify.org?format=json');
+            if (!response.ok) throw new Error("Network error");
+            const data = await response.json();
+            const ip = data.ip;
+            currentIp = ip;
+            displayIpSpan.innerText = ip;
+            
+            // 3. Tạo key
+            const generatedKey = generateKeyFromData(ip, vnDateKey);
+            currentKey = generatedKey;
+            keyInput.value = currentKey;
+            keyInput.classList.add('generated-key');
+            setTimeout(() => keyInput.classList.remove('generated-key'), 400);
+            keyInput.style.opacity = "1";
+            
+            // Optional: thông báo thành công nhưng không làm phiền
+            // showToast("🔑 Key đã sẵn sàng", false);
+        } catch (err) {
+            console.error("Lỗi lấy IP:", err);
+            displayIpSpan.innerText = "❌ Lỗi mạng";
+            keyInput.value = "🔪 LỖI KẾT NỐI 🔪";
+            currentKey = "";
+            showToast("❌ Không thể lấy IP, hãy tắt VPN/Proxy", true);
+        }
+    }
+
+    // Hàm làm mới: gọi lại toàn bộ quy trình (refresh IP & key)
+    async function refreshKey() {
+        keyInput.value = "🔄 ĐANG CẬP NHẬT...";
+        await fetchAndGenerateKey();
+        showToast("✨ Key mới đã được tạo!", false);
+    }
+
+    // Copy key với hiệu ứng
+    async function copyKeyToClipboard() {
+        let keyToCopy = keyInput.value;
+        if (!keyToCopy || keyToCopy.includes("LỖI") || keyToCopy.includes("ĐANG TẠO") || keyToCopy === "🔪 LỖI KẾT NỐI 🔪" || keyToCopy === "⚡ ĐANG KẾT NỐI... ⚡") {
+            showToast("❗ Chưa có key hợp lệ, vui lòng chờ hoặc bấm tạo lại", true);
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(keyToCopy);
+            showToast(`📋 Đã copy: ${keyToCopy}`, false);
+            // animation nhẹ
+            keyInput.style.transform = "scale(0.98)";
+            setTimeout(() => keyInput.style.transform = "", 150);
+        } catch (err) {
+            // fallback
+            keyInput.select();
+            document.execCommand('copy');
+            showToast("✅ Đã copy (hỗ trợ cũ)", false);
+            keyInput.blur();
+        }
+    }
+
+    // Khởi tạo sự kiện và chạy lần đầu
+    async function init() {
+        updateRealTimeClock();
+        await fetchAndGenerateKey();   // sinh key dựa trên IP thật
+        
+        // Gắn sự kiện copy và refresh
+        copyBtn.addEventListener('click', copyKeyToClipboard);
+        refreshBtn.addEventListener('click', refreshKey);
+        // double click vào ô key cũng copy
+        keyInput.addEventListener('dblclick', copyKeyToClipboard);
+        
+        // Xử lý link footer giữ tên tác giả
+        const creatorLink = document.getElementById('creatorLink');
+        creatorLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            showToast("⚔️ Duy Khánh · Omega Tool | Huycon Edition", false);
+        });
+    }
+    
+    // Chạy toàn bộ
+    init();
+</script>
+</body>
+</html>
