@@ -1,0 +1,879 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+LOTO VIP - SIÊU CẤP PRO MAX
+Giao diện Cyberpunk Neon - Hiển thị số BUILD chính xác tuyệt đối
+Bản quyền: DUYTOOL
+"""
+
+import subprocess
+import sys
+import importlib
+import base64
+import json
+import os
+import time
+import random
+import logging
+from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
+
+# Tự động cài thư viện nếu thiếu
+def install_package(package):
+    try:
+        importlib.import_module(package)
+    except ImportError:
+        print(f"Đang cài đặt thư viện thiếu: {package}...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+install_package('requests')
+install_package('colorama')
+
+import requests
+from colorama import init, Fore, Back, Style, just_fix_windows_console
+
+init(autoreset=True)
+just_fix_windows_console()
+
+# ================= CẤU HÌNH LICENSE (GIỮ NGUYÊN) =================
+SECRET_KEY_BASE = base64.urlsafe_b64encode(os.urandom(32))
+LICENSE_FILE = "ip_key.json"
+
+def encrypt_data(data: str) -> str:
+    return base64.b64encode(data.encode()).decode()
+
+def decrypt_data(encrypted_data: str) -> str:
+    return base64.b64decode(encrypted_data.encode()).decode()
+
+def get_ip_address() -> str | None:
+    try:
+        response = requests.get('https://api.ipify.org?format=json', timeout=5)
+        return response.json()['ip']
+    except Exception:
+        return None
+
+def luu_thong_tin_ip(ip: str, key: str, expiration_date: datetime):
+    data = {ip: {'key': key, 'expiration_date': expiration_date.isoformat()}}
+    encrypted = encrypt_data(json.dumps(data))
+    with open(LICENSE_FILE, 'w') as f:
+        f.write(encrypted)
+
+def tai_thong_tin_ip() -> dict | None:
+    try:
+        with open(LICENSE_FILE, 'r') as f:
+            encrypted = f.read()
+        return json.loads(decrypt_data(encrypted))
+    except FileNotFoundError:
+        return None
+
+def kiem_tra_ip(ip: str) -> str | None:
+    data = tai_thong_tin_ip()
+    if data and ip in data:
+        exp = datetime.fromisoformat(data[ip]['expiration_date'])
+        if exp > datetime.now():
+            return data[ip]['key']
+    return None
+
+def generate_key_and_url(ip_address: str) -> tuple[str, str, datetime]:
+    ngay = datetime.now().day
+    key1 = str(ngay * 27 + 27)
+    ip_numbers = ''.join(filter(str.isdigit, ip_address))
+    key = f'LOTO{key1}{ip_numbers}'
+    expiration = datetime.now().replace(hour=2, minute=59, second=0, microsecond=0)
+    url = f'https://webkeyduyphuc.x10.mx/?ma={key}'
+    return url, key, expiration
+
+def da_qua_gio_moi() -> bool:
+    now = datetime.now()
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    return now >= midnight
+
+def get_shortened_link_phu(url: str) -> dict:
+    try:
+        token = "66bc3245dfd246144040ac98"
+        api_url = f"https://link4m.co/api-shorten/v2?api={token}&url={url}"
+        resp = requests.get(api_url, timeout=5)
+        if resp.status_code == 200:
+            return resp.json()
+        return {"status": "error", "message": "Không thể kết nối dịch vụ rút gọn"}
+    except Exception as e:
+        return {"status": "error", "message": f"Lỗi: {e}"}
+
+# ================= GIAO DIỆN SIÊU CẤP - CYBERPUNK NEON =================
+class NeonUI:
+    """Giao diện hoàn toàn mới – hiển thị số chính xác tuyệt đối"""
+    
+    COLORS = {
+        'neon_pink': Fore.LIGHTMAGENTA_EX + Style.BRIGHT,
+        'neon_cyan': Fore.LIGHTCYAN_EX + Style.BRIGHT,
+        'neon_green': Fore.LIGHTGREEN_EX + Style.BRIGHT,
+        'neon_yellow': Fore.LIGHTYELLOW_EX + Style.BRIGHT,
+        'neon_red': Fore.LIGHTRED_EX + Style.BRIGHT,
+        'neon_blue': Fore.LIGHTBLUE_EX + Style.BRIGHT,
+        'gold': Fore.YELLOW + Style.BRIGHT,
+        'silver': Fore.LIGHTWHITE_EX + Style.BRIGHT,
+        'reset': Style.RESET_ALL,
+    }
+    
+    BOX = {
+        'tl': '╔', 'tr': '╗', 'bl': '╚', 'br': '╝', 'h': '═', 'v': '║',
+        'tl_r': '╭', 'tr_r': '╮', 'bl_r': '╰', 'br_r': '╯', 'h_d': '─', 'v_d': '│',
+        'star': '★', 'bolt': '⚡', 'diamond': '♦', 'circle': '●', 'heart': '♥'
+    }
+    
+    banner_shown = False
+    
+    @staticmethod
+    def clear():
+        os.system('cls' if os.name == 'nt' else 'clear')
+    
+    @staticmethod
+    def typewriter(text, color='neon_cyan', delay=0.03):
+        for ch in text:
+            sys.stdout.write(NeonUI.COLORS.get(color, NeonUI.COLORS['neon_cyan']) + ch + NeonUI.COLORS['reset'])
+            sys.stdout.flush()
+            time.sleep(delay)
+        print()
+    
+    @staticmethod
+    def neon_box(text, color='neon_pink', width=78, style='double'):
+        color_code = NeonUI.COLORS.get(color, NeonUI.COLORS['neon_pink'])
+        if style == 'double':
+            tl, tr, bl, br, h, v = NeonUI.BOX['tl'], NeonUI.BOX['tr'], NeonUI.BOX['bl'], NeonUI.BOX['br'], NeonUI.BOX['h'], NeonUI.BOX['v']
+        elif style == 'sharp':
+            tl, tr, bl, br, h, v = NeonUI.BOX['tl_r'], NeonUI.BOX['tr_r'], NeonUI.BOX['bl_r'], NeonUI.BOX['br_r'], NeonUI.BOX['h_d'], NeonUI.BOX['v_d']
+        else:
+            tl, tr, bl, br, h, v = NeonUI.BOX['tl_r'], NeonUI.BOX['tr_r'], NeonUI.BOX['bl_r'], NeonUI.BOX['br_r'], NeonUI.BOX['h_d'], NeonUI.BOX['v_d']
+        
+        lines = text.split('\n')
+        max_len = max(len(line) for line in lines) if lines else 0
+        max_len = min(max_len, width-4)
+        print(f"{color_code}{tl}{h * (max_len+2)}{tr}{NeonUI.COLORS['reset']}")
+        for line in lines:
+            if len(line) > max_len:
+                line = line[:max_len-3] + '...'
+            print(f"{color_code}{v}{NeonUI.COLORS['reset']} {line:<{max_len}} {color_code}{v}{NeonUI.COLORS['reset']}")
+        print(f"{color_code}{bl}{h * (max_len+2)}{br}{NeonUI.COLORS['reset']}")
+    
+    @staticmethod
+    def gradient_box(text, color_start='neon_pink', color_end='neon_cyan', width=78):
+        colors = [NeonUI.COLORS['neon_pink'], NeonUI.COLORS['neon_red'], NeonUI.COLORS['neon_yellow'], 
+                  NeonUI.COLORS['neon_green'], NeonUI.COLORS['neon_cyan'], NeonUI.COLORS['neon_blue']]
+        lines = text.split('\n')
+        max_len = max(len(line) for line in lines) if lines else 0
+        max_len = min(max_len, width-4)
+        top = NeonUI.BOX['tl']
+        for i in range(max_len + 2):
+            top += colors[i % len(colors)] + NeonUI.BOX['h']
+        top += colors[0] + NeonUI.BOX['tr'] + NeonUI.COLORS['reset']
+        print(top)
+        for line in lines:
+            if len(line) > max_len:
+                line = line[:max_len-3] + '...'
+            print(f"{colors[0]}{NeonUI.BOX['v']}{NeonUI.COLORS['reset']} {line:<{max_len}} {colors[0]}{NeonUI.BOX['v']}{NeonUI.COLORS['reset']}")
+        bottom = colors[0] + NeonUI.BOX['bl']
+        for i in range(max_len + 2):
+            bottom += colors[i % len(colors)] + NeonUI.BOX['h']
+        bottom += colors[0] + NeonUI.BOX['br'] + NeonUI.COLORS['reset']
+        print(bottom)
+    
+    @staticmethod
+    def cyber_banner():
+        if NeonUI.banner_shown:
+            return
+        NeonUI.clear()
+        banner_lines = [
+            "╔══════════════════════════════════════════════════════════════════╗",
+            "║                                                                  ║",
+            "║      ██╗      ██████╗ ████████╗ ██████╗     ██╗   ██╗██╗██████╗ ║",
+            "║      ██║     ██╔═══██╗╚══██╔══╝██╔═══██╗    ██║   ██║██║██╔══██╗║",
+            "║      ██║     ██║   ██║   ██║   ██║   ██║    ██║   ██║██║██████╔╝║",
+            "║      ██║     ██║   ██║   ██║   ██║   ██║    ╚██╗ ██╔╝██║██╔═══╝ ║",
+            "║      ███████╗╚██████╔╝   ██║   ╚██████╔╝     ╚████╔╝ ██║██║     ║",
+            "║      ╚══════╝ ╚═════╝    ╚═╝    ╚═════╝       ╚═══╝  ╚═╝╚═╝     ║",
+            "║                                                                  ║",
+            "║              ███████╗██╗   ██╗██████╗ ███████╗██████╗            ║",
+            "║              ██╔════╝██║   ██║██╔══██╗██╔════╝██╔══██╗           ║",
+            "║              ███████╗██║   ██║██████╔╝█████╗  ██████╔╝           ║",
+            "║              ╚════██║██║   ██║██╔═══╝ ██╔══╝  ██╔══██╗           ║",
+            "║              ███████║╚██████╔╝██║     ███████╗██║  ██║           ║",
+            "║              ╚══════╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝           ║",
+            "║                                                                  ║",
+            "║                    🚀  VERSION 3.0 - NEON  🚀                    ║",
+            "╚══════════════════════════════════════════════════════════════════╝"
+        ]
+        colors = [NeonUI.COLORS['neon_pink'], NeonUI.COLORS['neon_cyan'], NeonUI.COLORS['neon_green'], 
+                  NeonUI.COLORS['neon_yellow'], NeonUI.COLORS['neon_blue'], NeonUI.COLORS['neon_red']]
+        for i, line in enumerate(banner_lines):
+            print(colors[i % len(colors)] + line + NeonUI.COLORS['reset'])
+            time.sleep(0.03)
+        for _ in range(2):
+            print("\r" + " " * 80, end="")
+            time.sleep(0.1)
+            print("\r" + NeonUI.COLORS['gold'] + Back.RED + Style.BRIGHT + "          ⚡ LOTO VIP - SIÊU CẤP PRO MAX ⚡          " + NeonUI.COLORS['reset'], end="")
+            time.sleep(0.1)
+        print("\n")
+        NeonUI.banner_shown = True
+    
+    @staticmethod
+    def loading_animation(text="ĐANG XỬ LÝ", color='neon_cyan', duration=1.5):
+        chars = ['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷']
+        end_time = time.time() + duration
+        i = 0
+        while time.time() < end_time:
+            sys.stdout.write(f"\r{NeonUI.COLORS[color]}{chars[i % len(chars)]} {text}...{NeonUI.COLORS['reset']}")
+            sys.stdout.flush()
+            time.sleep(0.1)
+            i += 1
+        print("\r" + " " * 40 + "\r", end="")
+    
+    @staticmethod
+    def format_number(value):
+        """Định dạng số với độ chính xác tối đa, không làm tròn, loại bỏ số 0 vô nghĩa"""
+        if isinstance(value, float):
+            # Chuyển thành chuỗi với 12 chữ số thập phân, sau đó loại bỏ số 0 thừa
+            s = f"{value:.12f}".rstrip('0').rstrip('.')
+            return s
+        return str(value)
+    
+    @staticmethod
+    def balance_card(balance, profit, win_rate, games):
+        balance_str = NeonUI.format_number(balance)
+        profit_str = NeonUI.format_number(profit)
+        NeonUI.gradient_box(f"""
+  {NeonUI.BOX['diamond']} SỐ DƯ HIỆN TẠI : {balance_str:>30}
+  {NeonUI.BOX['star']} LỢI NHUẬN      : {profit_str:>30}
+  {NeonUI.BOX['circle']} TỈ LỆ THẮNG   : {win_rate:>6.2f}%  ({games} ván)
+        """, color_start='neon_cyan', color_end='neon_blue')
+    
+    @staticmethod
+    def result_display(is_win, total_score, result_side, bet_amount, profit):
+        bet_str = NeonUI.format_number(bet_amount)
+        profit_str = NeonUI.format_number(profit)
+        if is_win:
+            icon = "✅ THẮNG LỚN ✅"
+            color = 'neon_green'
+        else:
+            icon = "❌ THUA ❌"
+            color = 'neon_red'
+        NeonUI.neon_box(f"""
+  {icon}
+  🎲 TỔNG ĐIỂM : {total_score}  →  {BET_TYPES.get(result_side, result_side).upper()}
+  💵 TIỀN CƯỢC : {bet_str}
+  💰 LÃI/LỖ   : {profit_str}
+        """, color=color, style='double')
+    
+    @staticmethod
+    def separator(title=None, color='neon_pink'):
+        color_code = NeonUI.COLORS.get(color, NeonUI.COLORS['neon_pink'])
+        if title:
+            text = f" {NeonUI.BOX['bolt']} {title} {NeonUI.BOX['bolt']} "
+            width = 74
+            left = (width - len(text)) // 2
+            right = width - len(text) - left
+            print(f"{color_code}{NeonUI.BOX['tl_r']}{NeonUI.BOX['h_d'] * left}{text}{NeonUI.BOX['h_d'] * right}{NeonUI.BOX['tr_r']}{NeonUI.COLORS['reset']}")
+        else:
+            print(f"{color_code}{NeonUI.BOX['h_d'] * 78}{NeonUI.COLORS['reset']}")
+
+# ================= LƯU CÀI ĐẶT BOT =================
+SETTINGS_FILE = "bot_settings.json"
+
+def save_settings(settings: dict):
+    try:
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=4)
+    except Exception as e:
+        NeonUI.neon_box(f"Lỗi lưu cài đặt: {e}", color='neon_red')
+
+def load_settings() -> dict | None:
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return None
+    return None
+
+# ================= HÀM KIỂM TRA LICENSE (GIAO DIỆN MỚI) =================
+def check_license() -> bool:
+    ip = get_ip_address()
+    if not ip:
+        NeonUI.neon_box("❌ KHÔNG THỂ LẤY ĐỊA CHỈ IP!", color='neon_red')
+        return False
+
+    existing = kiem_tra_ip(ip)
+    if existing:
+        NeonUI.neon_box(f"✅ IP {ip} còn hạn sử dụng. Đang khởi động...", color='neon_green')
+        NeonUI.loading_animation("KIỂM TRA LICENSE", duration=1.5)
+        return True
+
+    if da_qua_gio_moi():
+        NeonUI.neon_box("⏰ ĐÃ QUÁ GIỜ SỬ DỤNG! VUI LÒNG LIÊN HỆ ADMIN.", color='neon_red')
+        return False
+
+    NeonUI.cyber_banner()
+    NeonUI.separator(" XÁC THỰC BẢN QUYỀN ", color='neon_pink')
+    NeonUI.neon_box(f"ĐỊA CHỈ IP CỦA BẠN: {ip}", color='neon_cyan', style='round')
+
+    url, expected_key, expiration = generate_key_and_url(ip)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        NeonUI.typewriter("📌 NHẤN 1 ĐỂ LẤY LINK RÚT GỌN VÀ NHẬN KEY", color='neon_yellow')
+        while True:
+            try:
+                choice = input(NeonUI.COLORS['neon_pink'] + "LỰA CHỌN (1): " + NeonUI.COLORS['reset']).strip()
+                if choice == "1":
+                    future = executor.submit(get_shortened_link_phu, url)
+                    result = future.result()
+                    if result.get("status") == "error":
+                        NeonUI.neon_box(result.get('message'), color='neon_red')
+                        return False
+                    short_link = result.get("shortenedUrl")
+                    NeonUI.neon_box(f"🔗 LINK LẤY KEY: {short_link}", color='neon_green', style='sharp')
+                    break
+            except KeyboardInterrupt:
+                NeonUI.typewriter("\nTHOÁT THEO YÊU CẦU.", 'neon_red')
+                return False
+
+    while True:
+        key_input = input(NeonUI.COLORS['neon_yellow'] + "🔑 NHẬP KEY BẠN NHẬN ĐƯỢC: " + NeonUI.COLORS['reset']).strip()
+        if key_input == expected_key:
+            NeonUI.neon_box("✔️ KEY CHÍNH XÁC! BẮT ĐẦU SỬ DỤNG TOOL...", color='neon_green')
+            luu_thong_tin_ip(ip, key_input, expiration)
+            NeonUI.loading_animation("KHỞI ĐỘNG", duration=2)
+            return True
+        else:
+            NeonUI.neon_box("❌ KEY SAI! VUI LÒNG KIỂM TRA LẠI LINK.", color='neon_red')
+
+# ========== PHẦN LOGIC BOT (GIỮ NGUYÊN) ==========
+SLEEP_BETWEEN_GAMES = 3
+HISTORY_FILE = "history_log.txt"
+CONFIG_FILE = "user_config.json"
+REQUIRED_HISTORY_LEN = 10
+
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger("WinhashPro")
+logger.disabled = True
+
+bot_running_flag = True
+
+def get_vn_time():
+    return datetime.utcnow() + timedelta(hours=7)
+
+def safe_float(value):
+    try:
+        if value is None: return 0.0
+        return float(value)
+    except:
+        return 0.0
+
+def load_user_config():
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return None
+    return None
+
+def save_user_config(user_id, secret_key):
+    data = {"user_id": user_id, "user_secret_key": secret_key}
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except Exception as e:
+        print(f"Lỗi lưu file: {e}")
+
+BET_TYPES = {
+    'small': 'Nhỏ (3-9)',
+    'big': 'Lớn (12-18)', 
+    'draw': 'Hòa (10-11)'
+}
+
+BET_IDS = {
+    'small': 70309, 
+    'big': 71218, 
+    'draw': 71011
+}
+
+class WinhashBot:
+    def __init__(self):
+        self.session = requests.Session()
+        self.user_id = None
+        self.user_secret_key = None
+        self.headers = {}
+        self.asset = 'BUILD'
+        self.base_amount = 10.0
+        self.current_bet_amount = 10.0
+        self.logic_mode = 1
+        self.fixed_bet_side = 'small'
+        self.multiplier = 1.0
+        self.max_games = 0
+        self.stop_loss_limit = 0.0
+        self.take_profit_limit = 0.0
+        self.stats = {
+            'win': 0,
+            'lose': 0,
+            'total_games': 0,
+            'start_balance': 0.0,
+            'current_balance': 0.0
+        }
+        self.history_data = []
+
+    def send_msg(self, text, msg_type='info'):
+        clean = text.replace('`', '').replace('**', '').replace('*', '')
+        if 'WIN' in clean or '✅' in clean:
+            NeonUI.neon_box(clean, color='neon_green', style='double')
+        elif 'LOSS' in clean or '❌' in clean:
+            NeonUI.neon_box(clean, color='neon_red', style='double')
+        else:
+            NeonUI.neon_box(clean, color='neon_cyan', style='round')
+
+    def setup_headers(self):
+        self.headers = {
+            'accept': '*/*',
+            'country-code': 'vn',
+            'origin': 'https://winhash.io',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'user-id': self.user_id,
+            'user-login': 'login_v2',
+            'user-secret-key': self.user_secret_key,
+            'xb-language': 'vi-VN',
+            'cache-control': 'no-cache', 
+            'pragma': 'no-cache'
+        }
+
+    def get_balance(self, max_retries=5):
+        for i in range(max_retries):
+            try:
+                current_time = int(time.time() * 1000)
+                random_salt = random.randint(1, 99999)
+                params = {
+                    'is_cwallet': '1', 
+                    'is_mission_setting': 'true', 
+                    'version': '', 
+                    'time': str(current_time),
+                    '_': str(random_salt)
+                }
+                header_copy = self.headers.copy()
+                header_copy['cache-control'] = 'no-store'
+                response = self.session.get('https://user.3games.io/user/regist', params=params, headers=header_copy, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('code') == 200:
+                        cwallet = data.get('data', {}).get('cwallet', {})
+                        if cwallet:
+                            build_bal = safe_float(cwallet.get('ctoken_contribute', 0))
+                            return {'BUILD': build_bal}
+            except Exception:
+                time.sleep(1)
+        return {'BUILD': 0.0}
+
+    def get_hourly_issue_list(self):
+        try:
+            params = {'ts': int(time.time()), 'r': random.random()}
+            response = self.session.get('https://api.winhash.net/lucky_game/hourly_issue_list', params=params, headers=self.headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('code') == 0:
+                    return data.get('data', [])
+        except Exception:
+            pass
+        return []
+
+    def sync_initial_history(self):
+        self.send_msg("⏳ Đang đồng bộ dữ liệu lịch sử...", msg_type='info')
+        issue_list = self.get_hourly_issue_list()
+        count_added = 0
+        if issue_list:
+            sorted_issues = sorted(issue_list, key=lambda x: x['issue_id'])
+            for issue in sorted_issues:
+                issue_id = issue.get('issue_id')
+                lucky_codes = issue.get('lucky_codes', [])
+                if lucky_codes and len(lucky_codes) == 3:
+                    total = sum(lucky_codes)
+                    res_side = self.get_result_side(total)
+                    if not any(x['issue'] == issue_id for x in self.history_data):
+                        self.history_data.append({'issue': issue_id, 'result': res_side})
+                        count_added += 1
+        if len(self.history_data) > 50:
+            self.history_data = self.history_data[-50:]
+        self.send_msg(f"✅ Đã đồng bộ {count_added} ván mới. Tổng data: {len(self.history_data)}", msg_type='success')
+
+    def find_current_issue_id(self):
+        issue_list = self.get_hourly_issue_list()
+        if not issue_list: return None
+        max_issue_id = 0
+        for issue in issue_list:
+            iid = issue.get('issue_id', 0)
+            if iid > max_issue_id:
+                max_issue_id = iid
+        if max_issue_id > 0:
+            return max_issue_id + 1
+        return None
+
+    def place_bet_api(self, issue_id, bet_type, amount):
+        try:
+            item_id = BET_IDS.get(bet_type)
+            if not item_id: return False, "Loại cược lỗi"
+            # Giữ nguyên độ chính xác cao khi gửi lên API
+            amt_str = f"{amount:.12f}".rstrip('0').rstrip('.')
+            payload = {
+                "game_id": 1,
+                "issue_id": issue_id,
+                "items": [{"id": item_id, "amount": amt_str, "asset": self.asset}]
+            }
+            headers_bet = self.headers.copy()
+            headers_bet['request-ts'] = str(int(time.time()))
+            response = self.session.post('https://api.winhash.net/lucky_game/v2/create_order', headers=headers_bet, json=payload, timeout=10)
+            data = response.json()
+            if data.get('code') == 0: 
+                return True, "OK"
+            else: 
+                return False, f"Server trả lỗi: {data.get('msg', 'Unknown Error')}"
+        except Exception as e:
+            return False, str(e)
+
+    def wait_for_result(self, issue_id):
+        start_wait = time.time()
+        timeout_seconds = 70 
+        while time.time() - start_wait < timeout_seconds:
+            try:
+                issue_list = self.get_hourly_issue_list()
+                if issue_list:
+                    for issue in issue_list:
+                        if issue.get('issue_id') == issue_id:
+                            lucky_codes = issue.get('lucky_codes', [])
+                            if lucky_codes and len(lucky_codes) == 3:
+                                total = sum(lucky_codes)
+                                return total, lucky_codes
+            except Exception:
+                pass
+            time.sleep(2)
+        return None, None
+
+    def get_result_side(self, total_score):
+        if 3 <= total_score <= 9: return 'small'
+        if 12 <= total_score <= 18: return 'big'
+        return 'draw'
+
+    def check_win_lose(self, total_score, bets_placed):
+        actual_outcome = self.get_result_side(total_score)
+        is_win = False
+        for bet in bets_placed:
+            if bet == actual_outcome:
+                is_win = True
+        return is_win, actual_outcome
+
+    def logic_mode_1_revert(self):
+        if len(self.history_data) < 2:
+            return ['small']
+        last_res = self.history_data[-1]['result']
+        prev_res = self.history_data[-2]['result']
+        if last_res != prev_res:
+            target = prev_res if prev_res in ['big', 'small'] else 'small'
+            return ['draw', target]
+        else:
+            return [last_res]
+
+    def logic_mode_2_statistic(self):
+        hist_len = len(self.history_data)
+        if hist_len < 10:
+            return []
+        recent_data = self.history_data[-20:]
+        results = [x['result'] for x in recent_data]
+        current_streak_side = results[-1]
+        streak_count = 0
+        for res in reversed(results):
+            if res == current_streak_side:
+                streak_count += 1
+            else:
+                break
+        if streak_count >= 3 and current_streak_side in ['small', 'big']:
+            return [current_streak_side]
+        count_small = results.count('small')
+        count_big = results.count('big')
+        if count_big > count_small:
+            return ['big']
+        elif count_small > count_big:
+            return ['small']
+        return [results[-1] if results[-1] != 'draw' else 'small']
+
+    def select_bets(self):
+        if self.logic_mode == 3:
+            return [self.fixed_bet_side]
+        if self.logic_mode == 1:
+            return self.logic_mode_1_revert()
+        elif self.logic_mode == 2:
+            bets = self.logic_mode_2_statistic()
+            if not bets:
+                return []
+            return bets
+        return ['small']
+
+    def run_process(self):
+        global bot_running_flag
+        if not self.user_id or not self.user_secret_key:
+            self.send_msg("❌ Chưa có User ID/Secret.", msg_type='error')
+            bot_running_flag = False
+            return
+
+        self.setup_headers()
+        bal = self.get_balance(max_retries=3)
+        current_build = bal.get('BUILD', 0.0)
+        self.stats['start_balance'] = current_build
+
+        NeonUI.separator(" KHỞI ĐỘNG HỆ THỐNG ", color='neon_pink')
+        start_info = f"""
+  🚀 TRẠNG THÁI: ONLINE
+  💰 SỐ DƯ ĐẦU : {NeonUI.format_number(current_build)}
+  💵 CƯỢC GỐC : {self.base_amount}
+  🧠 CHẾ ĐỘ   : {self.logic_mode}
+  ⚡ HỆ SỐ NHÂN: {self.multiplier}
+        """
+        NeonUI.gradient_box(start_info, color_start='neon_cyan', color_end='neon_blue')
+        NeonUI.separator()
+
+        self.sync_initial_history()
+        self.current_bet_amount = self.base_amount
+        last_issue_processed = None
+
+        while bot_running_flag:
+            try:
+                new_bal = self.get_balance(max_retries=1)
+                real_current_bal = new_bal.get('BUILD', 0)
+                curr_profit = real_current_bal - self.stats['start_balance']
+                
+                if self.max_games > 0 and self.stats['total_games'] >= self.max_games:
+                    self.send_msg(f"🛑 Đã dừng: Đủ {self.max_games} ván.", msg_type='warning')
+                    break
+                if self.take_profit_limit > 0 and curr_profit >= self.take_profit_limit:
+                    self.send_msg(f"🎉 CHỐT LỜI: +{NeonUI.format_number(curr_profit)} BUILD", msg_type='success')
+                    break
+                if self.stop_loss_limit > 0 and curr_profit <= -self.stop_loss_limit:
+                    self.send_msg(f"⚠️ CẮT LỖ: -{NeonUI.format_number(abs(curr_profit))} BUILD", msg_type='error')
+                    break
+
+                curr_issue = self.find_current_issue_id()
+                if not curr_issue:
+                    time.sleep(2)
+                    continue
+                if curr_issue == last_issue_processed:
+                    time.sleep(SLEEP_BETWEEN_GAMES)
+                    continue
+
+                if len(self.history_data) < 2:
+                    self.sync_initial_history()
+                    if len(self.history_data) == 0:
+                        total, codes = self.wait_for_result(curr_issue)
+                        if total is not None:
+                            res = self.get_result_side(total)
+                            self.history_data.append({'issue': curr_issue, 'result': res})
+                        last_issue_processed = curr_issue
+                        continue
+
+                target_bets = self.select_bets()
+                if not target_bets:
+                    total, codes = self.wait_for_result(curr_issue)
+                    if total is not None:
+                        res = self.get_result_side(total)
+                        self.history_data.append({'issue': curr_issue, 'result': res})
+                    last_issue_processed = curr_issue
+                    continue
+
+                bet_names = [BET_TYPES.get(x, x) for x in target_bets]
+                bet_info = f"""
+  🆔 VÁN      : {curr_issue}
+  🎯 CHỌN     : {', '.join(bet_names)}
+  💵 TIỀN     : {NeonUI.format_number(self.current_bet_amount)}
+                """
+                NeonUI.neon_box(bet_info, color='neon_yellow', style='double')
+
+                placed_ok = False
+                msg_err = ""
+                for b_type in target_bets:
+                    ok, msg = self.place_bet_api(curr_issue, b_type, self.current_bet_amount)
+                    if ok: placed_ok = True
+                    else: msg_err = msg
+                if not placed_ok:
+                    self.send_msg(f"❌ Lỗi đặt: {msg_err}", msg_type='error')
+                    if "balance" in str(msg_err).lower():
+                        self.send_msg("🛑 Hết tiền!", msg_type='error')
+                        break
+                    last_issue_processed = curr_issue
+                    continue
+
+                last_issue_processed = curr_issue
+                NeonUI.loading_animation("CHỜ KẾT QUẢ", duration=2)
+
+                total_score, lucky_codes = self.wait_for_result(curr_issue)
+                if total_score is not None:
+                    is_win, result_side = self.check_win_lose(total_score, target_bets)
+                    self.history_data.append({'issue': curr_issue, 'result': result_side})
+                    if len(self.history_data) > 60: self.history_data.pop(0)
+                    self.stats['total_games'] += 1
+                    
+                    if is_win:
+                        self.stats['win'] += 1
+                        self.current_bet_amount = self.base_amount
+                    else:
+                        self.stats['lose'] += 1
+                        self.current_bet_amount = round(self.current_bet_amount * self.multiplier, 12)
+
+                    bal_now = self.get_balance(max_retries=2)
+                    real_bal = bal_now.get('BUILD', 0)
+                    profit = real_bal - self.stats['start_balance']
+                    win_rate = (self.stats['win'] / self.stats['total_games'] * 100) if self.stats['total_games'] > 0 else 0
+                    
+                    NeonUI.result_display(is_win, total_score, result_side, self.current_bet_amount if not is_win else self.base_amount, profit)
+                    NeonUI.balance_card(real_bal, profit, win_rate, self.stats['total_games'])
+                    NeonUI.separator()
+                else:
+                    self.send_msg("⚠️ Timeout kết quả.", msg_type='warning')
+
+            except Exception as e:
+                self.send_msg(f"⚠️ Lỗi: {e}", msg_type='error')
+                time.sleep(5)
+            except KeyboardInterrupt:
+                break
+
+        bot_running_flag = False
+        NeonUI.separator(" KẾT THÚC CHƯƠNG TRÌNH ", color='neon_pink')
+        final_bal = self.get_balance(max_retries=2).get('BUILD', 0)
+        final_profit = final_bal - self.stats['start_balance']
+        final_stats = f"""
+  📊 TỔNG KẾT:
+  🎮 SỐ VÁN      : {self.stats['total_games']}
+  ✅ THẮNG       : {self.stats['win']}
+  ❌ THUA        : {self.stats['lose']}
+  💰 LỢI NHUẬN   : {NeonUI.format_number(final_profit)} BUILD
+  💎 SỐ DƯ CUỐI  : {NeonUI.format_number(final_bal)} BUILD
+        """
+        NeonUI.gradient_box(final_stats, color_start='neon_cyan', color_end='neon_blue')
+
+# ================= MÀN HÌNH CÀI ĐẶT (SETTINGS) =================
+def settings_screen(bot):
+    NeonUI.clear()
+    NeonUI.separator(" CẤU HÌNH CƯỢC ", color='neon_pink')
+    try:
+        base_amt = input(NeonUI.COLORS['neon_yellow'] + "💰 Tiền cược gốc (10): " + NeonUI.COLORS['reset']).strip()
+        bot.base_amount = float(base_amt) if base_amt else 10.0
+        multi = input(NeonUI.COLORS['neon_yellow'] + "🔄 Hệ số nhân khi thua (1.0): " + NeonUI.COLORS['reset']).strip()
+        bot.multiplier = float(multi) if multi else 1.0
+        max_games = input(NeonUI.COLORS['neon_yellow'] + "🎮 Số ván tối đa (0 = không giới hạn): " + NeonUI.COLORS['reset']).strip()
+        bot.max_games = int(max_games) if max_games else 0
+        take_profit = input(NeonUI.COLORS['neon_yellow'] + "💰 Chốt lời khi lãi đạt (0 = không): " + NeonUI.COLORS['reset']).strip()
+        bot.take_profit_limit = float(take_profit) if take_profit else 0.0
+        stop_loss = input(NeonUI.COLORS['neon_yellow'] + "⚠️ Cắt lỗ khi lỗ đạt (0 = không): " + NeonUI.COLORS['reset']).strip()
+        bot.stop_loss_limit = float(stop_loss) if stop_loss else 0.0
+        print()
+        NeonUI.typewriter("🎯 CHỌN LOGIC:", 'neon_pink')
+        NeonUI.typewriter("1️⃣ Logic 2 CỬA (Đổi cầu đánh Hòa + Kết quả cũ)", 'neon_cyan')
+        NeonUI.typewriter("2️⃣ Logic 1 CỬA (Nghỉ 10 ván soi cầu, đánh theo số nhiều/chuỗi)", 'neon_cyan')
+        NeonUI.typewriter("3️⃣ Cố định 1 cửa", 'neon_cyan')
+        mode_inp = input(NeonUI.COLORS['neon_yellow'] + "👉 Chọn (1-3): " + NeonUI.COLORS['reset']).strip()
+        bot.logic_mode = int(mode_inp) if mode_inp else 1
+        if bot.logic_mode == 3:
+            side = input(NeonUI.COLORS['neon_yellow'] + "🎲 Nhập cửa (small/big): " + NeonUI.COLORS['reset']).strip().lower()
+            bot.fixed_bet_side = side if side in ['small', 'big'] else 'small'
+        bot.current_bet_amount = bot.base_amount
+        
+        settings = {
+            "base_amount": bot.base_amount,
+            "multiplier": bot.multiplier,
+            "max_games": bot.max_games,
+            "take_profit_limit": bot.take_profit_limit,
+            "stop_loss_limit": bot.stop_loss_limit,
+            "logic_mode": bot.logic_mode,
+            "fixed_bet_side": bot.fixed_bet_side
+        }
+        save_settings(settings)
+        
+        NeonUI.separator(" XÁC NHẬN CẤU HÌNH ", color='neon_pink')
+        config_confirm = f"""
+  💵 CƯỢC GỐC   : {bot.base_amount}
+  🔄 HỆ SỐ NHÂN : {bot.multiplier}
+  🎮 SỐ VÁN TỐI ĐA: {bot.max_games if bot.max_games > 0 else 'Không giới hạn'}
+  💰 CHỐT LỜI   : {bot.take_profit_limit if bot.take_profit_limit > 0 else 'Không'}
+  ⚠️ CẮT LỖ     : {bot.stop_loss_limit if bot.stop_loss_limit > 0 else 'Không'}
+  🧠 CHẾ ĐỘ     : {bot.logic_mode}
+        """
+        NeonUI.gradient_box(config_confirm, color_start='neon_green', color_end='neon_cyan')
+        input(NeonUI.COLORS['neon_yellow'] + "Nhấn Enter để tiếp tục..." + NeonUI.COLORS['reset'])
+    except ValueError:
+        NeonUI.neon_box("❌ Nhập sai số. Vui lòng chạy lại.", 'neon_red')
+        sys.exit(1)
+
+# ================= MÀN HÌNH TÀI KHOẢN =================
+def account_screen(bot):
+    NeonUI.clear()
+    NeonUI.separator(" ĐĂNG NHẬP TÀI KHOẢN ", color='neon_pink')
+    saved_config = load_user_config()
+    if saved_config:
+        NeonUI.typewriter(f"✅ Tìm thấy UserID cũ: {saved_config.get('user_id')}", color='neon_green')
+        use_old = input(NeonUI.COLORS['neon_yellow'] + "Dùng lại không? (y/n): " + NeonUI.COLORS['reset']).strip().lower()
+        if use_old == 'y':
+            bot.user_id = saved_config['user_id']
+            bot.user_secret_key = saved_config['user_secret_key']
+            return
+    link_input = input(NeonUI.COLORS['neon_cyan'] + "Nhập Link (chứa userId & secretKey): " + NeonUI.COLORS['reset']).strip()
+    try:
+        if 'userId=' in link_input and 'secretKey=' in link_input:
+            u_id = link_input.split('userId=')[1].split('&')[0]
+            s_key = link_input.split('secretKey=')[1].split('&')[0]
+            save_user_config(u_id, s_key)
+            bot.user_id = u_id
+            bot.user_secret_key = s_key
+            NeonUI.typewriter("✅ Đã lưu tài khoản!", 'neon_green')
+        else:
+            NeonUI.neon_box("❌ Link không hợp lệ.", 'neon_red')
+            sys.exit()
+    except Exception:
+        NeonUI.neon_box("❌ Lỗi xử lý link.", 'neon_red')
+        sys.exit()
+    input(NeonUI.COLORS['neon_yellow'] + "Nhấn Enter để bắt đầu chạy bot..." + NeonUI.COLORS['reset'])
+
+# ================= CHẠY CHÍNH =================
+if __name__ == "__main__":
+    NeonUI.clear()
+    if not check_license():
+        sys.exit(1)
+    
+    my_bot = WinhashBot()
+    
+    saved_settings = load_settings()
+    if saved_settings:
+        NeonUI.clear()
+        NeonUI.separator(" CÀI ĐẶT ĐÃ LƯU ", color='neon_pink')
+        saved_info = f"""
+  💵 Cược gốc   : {saved_settings.get('base_amount', 10)}
+  🔄 Hệ số nhân : {saved_settings.get('multiplier', 1)}
+  🎮 Số ván tối đa: {saved_settings.get('max_games', 0)}
+  💰 Chốt lời   : {saved_settings.get('take_profit_limit', 0)}
+  ⚠️ Cắt lỗ     : {saved_settings.get('stop_loss_limit', 0)}
+  🧠 Chế độ     : {saved_settings.get('logic_mode', 1)}
+        """
+        NeonUI.neon_box(saved_info, color='neon_cyan', style='round')
+        use_old_settings = input(NeonUI.COLORS['neon_yellow'] + "Dùng lại cài đặt cũ? (y/n): " + NeonUI.COLORS['reset']).strip().lower()
+        if use_old_settings == 'y':
+            my_bot.base_amount = saved_settings.get('base_amount', 10)
+            my_bot.multiplier = saved_settings.get('multiplier', 1)
+            my_bot.max_games = saved_settings.get('max_games', 0)
+            my_bot.take_profit_limit = saved_settings.get('take_profit_limit', 0)
+            my_bot.stop_loss_limit = saved_settings.get('stop_loss_limit', 0)
+            my_bot.logic_mode = saved_settings.get('logic_mode', 1)
+            my_bot.fixed_bet_side = saved_settings.get('fixed_bet_side', 'small')
+            my_bot.current_bet_amount = my_bot.base_amount
+        else:
+            settings_screen(my_bot)
+    else:
+        settings_screen(my_bot)
+    
+    account_screen(my_bot)
+    
+    NeonUI.clear()
+    try:
+        my_bot.run_process()
+    except KeyboardInterrupt:
+        NeonUI.typewriter("\n🛑 Tắt tool.", 'neon_red')
